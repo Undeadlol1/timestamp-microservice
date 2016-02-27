@@ -1,33 +1,66 @@
 'use strict';
 
-var express = require('express');
-var routes = require('./app/routes/index.js');
-var mongoose = require('mongoose');
-var passport = require('passport');
-var session = require('express-session');
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 8080;
+// project dependencies
+const url = require("url");
+const moment = require("moment");
 
-var app = express();
-require('dotenv').load();
-require('./app/config/passport')(passport);
+app.get('/:time', (req, res) => {
+	const reqUrl = url.parse(req.url, true);
+	let query = reqUrl.path.split('');
+	query.shift();
+	query = query.join('');
+	query = query.replace(/%20/, ' ').replace(/%20/, ' ');
+	const date = new Date(query);
+ 	let unix, natural;
 
-mongoose.connect(process.env.MONGO_URI);
+	// not a number and is a date string
+	if(isNaN(Number(query)) && date != 'Invalid Date'){
+		natural = query;
+		unix = moment(query, "MMMM DD, YYYY").format('X');
+	}
+	// is a number
+	else if(!isNaN(Number(query))){
+		natural = moment.unix(Number(query)).format("MMMM DD, YYYY");
+		unix = query;
+	}
+	else { natural = null; unix = null; } 
+	let data = {"unix": unix, "natural": natural};
+	res.write(JSON.stringify(data));
+	res.end();
+})
 
-app.use('/controllers', express.static(process.cwd() + '/app/controllers'));
-app.use('/public', express.static(process.cwd() + '/public'));
-app.use('/common', express.static(process.cwd() + '/app/common'));
 
-app.use(session({
-	secret: 'secretClementine',
-	resave: false,
-	saveUninitialized: true
-}));
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-routes(app, passport);
-
-var port = process.env.PORT || 8080;
-app.listen(port,  function () {
-	console.log('Node.js listening on port ' + port + '...');
+app.listen(port, () => {
+	console.log(`Node.js listening on port ${port}...`);
 });
+
+
+/****  TESTS  ****/
+	
+/*
+  function request (path){
+  require("http").get({
+  hostname: 'localhost',
+  port: 8080,
+  path: '/'+ path
+}, (res) => {
+	 res.on('error', (err)=>{
+	 	console.log('Responded with error '+ err);
+	 })
+	 res.on('data', (data)=>{
+	 	console.log(`Response data of the ${path} is:`);
+	 	console.log(JSON.parse(data));
+	 })
+	  res.on('end', ()=>{
+		// console.log('End of response.');
+	 })
+})
+}
+
+request('December%2015,%202015');
+request(1450137600);
+request('asdad');
+*/
